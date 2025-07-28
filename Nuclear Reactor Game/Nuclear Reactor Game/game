@@ -23,8 +23,11 @@ font = pygame.font.SysFont(None, 60)
 small_font = pygame.font.SysFont(None, 40)
 
 #load sounds:
-explosion_sound = pygame.mixer.Sound("explosion.wav")
-success_sound = pygame.mixer.Sound("success.wav")
+try:
+    explosion_sound = pygame.mixer.Sound("boom.wav")
+    success_sound = pygame.mixer.Sound("success.wav")
+except:
+    print("failed to load sounds")
 
 
 def create_game_state():
@@ -108,8 +111,7 @@ while running:
                         #check if all parts placed (win condition)
                         if all(slot["filled"] for slot in slots):
                             game_won = True
-                            if game_won == True:
-                                success_sound.play()
+                            success_sound.play()
 
                     else:
                         #meltdown
@@ -147,6 +149,23 @@ while running:
         screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 150))
         restart_button = draw_restart_button()
         pygame.display.flip()
+        clock.tick(60)
+        continue
+
+    #slot numbers
+    for slot in slots:
+        number_text = font.render(str(slot["id"]), True, GREEN)
+        number_rect = number_text.get_rect(center=slot["rect"].center)
+        screen.blit(number_text, number_rect)
+    #draw parts (colored rectangles)(ill replace with images later)
+    for part in parts:
+        pygame.draw.rect(screen, part["color"], part["rect"], border_radius=5)
+
+    pygame.display.flip()
+    clock.tick(60)
+
+
+.display.flip()
         clock.tick(60)
         continue
 
