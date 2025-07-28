@@ -1,0 +1,165 @@
+import pygame
+import sys
+
+#initialize pygame:
+pygame.init()
+pygame.mixer.init()  #initialize sound mixer
+
+#screen settings:
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Nuclear Reactor Constructor")
+
+#colors:
+WHITE = (255, 255, 255)
+GREEN = (0, 200, 0)
+BLACK = (0, 0, 0)
+RED = (200, 0, 0)
+BLUE = (0, 0, 200)
+YELLOW = (200, 200, 0)
+
+#fonts:
+font = pygame.font.SysFont(None, 60)
+small_font = pygame.font.SysFont(None, 40)
+
+#load sounds:
+explosion_sound = pygame.mixer.Sound("explosion.wav")
+success_sound = pygame.mixer.Sound("success.wav")
+
+
+def create_game_state():
+    """Initialize or reset the game state."""
+    #original positions for snapback behavior:
+    parts = [
+        {"name": "Core", "color": RED, "rect": pygame.Rect(50, 100, 80, 80), "original_pos": (50, 100), "placed": False},
+        {"name": "Control Rod", "color": BLUE, "rect": pygame.Rect(50, 200, 80, 80), "original_pos": (50, 200), "placed": False},
+        {"name": "Coolant Tank", "color": YELLOW, "rect": pygame.Rect(50, 300, 80, 80), "original_pos": (50, 300), "placed": False}
+    ]
+
+    #slots (horizontal row):
+    slots = [
+        {"id": 1, "rect": pygame.Rect(300, 300, 80, 80), "part": "Core", "filled": False},
+        {"id": 2, "rect": pygame.Rect(400, 300, 80, 80), "part": "Control Rod", "filled": False},
+        {"id": 3, "rect": pygame.Rect(500, 300, 80, 80), "part": "Coolant Tank", "filled": False}
+    ]
+
+    return parts, slots, 0, False, False  # parts, slots, current_slot_index, game_over, game_won
+
+
+def draw_restart_button():
+    """Draw and return the restart button rect."""
+    button_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT - 100, 200, 60)
+    pygame.draw.rect(screen, GREEN, button_rect, border_radius=10)
+    text = small_font.render("RESTART", True, BLACK)
+    screen.blit(text, (button_rect.centerx - text.get_width() // 2, button_rect.centery - text.get_height() // 2))
+    return button_rect
+
+
+#initialize game state:
+parts, slots, current_slot_index, game_over, game_won = create_game_state()
+dragging_part = None
+offset_x, offset_y = 0, 0
+
+#game loop:
+clock = pygame.time.Clock()
+running = True
+while running:
+    screen.fill(BLACK)  #background
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+        #handle restart button if game over or won:
+        if game_over or game_won:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = event.pos
+                if restart_button.collidepoint(mouse_pos):
+                    parts, slots, current_slot_index, game_over, game_won = create_game_state()
+            continue  #skip normal game logic
+
+        #dragging
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = event.pos
+            for part in parts:
+                if part["rect"].collidepoint(mouse_pos) and not part["placed"]:
+                    dragging_part = part
+                    offset_x = part["rect"].x - mouse_pos[0]
+                    offset_y = part["rect"].y - mouse_pos[1]
+                    break
+
+        #drop part
+        if event.type == pygame.MOUSEBUTTONUP:
+            if dragging_part:
+                #check if part overlaps any slot
+                dropped_on_slot = False
+                slot = slots[current_slot_index]  #next required slot
+
+                if slot["rect"].colliderect(dragging_part["rect"]):
+                    dropped_on_slot = True
+                    if slot["part"] == dragging_part["name"]:
+                        #if correct slot
+                        dragging_part["rect"].topleft = slot["rect"].topleft
+                        dragging_part["placed"] = True
+                        slot["filled"] = True
+                        current_slot_index += 1
+
+                        #check if all parts placed (win condition)
+                        if all(slot["filled"] for slot in slots):
+                            game_won = True
+                            if game_won == True:
+                                success_sound.play()
+
+                    else:
+                        #meltdown
+                        game_over = True
+                        if game_over == True:
+                            explosion_sound.play()
+
+                
+                if not dropped_on_slot:
+                    #snapback to tray position if dropped elsewhere
+                    dragging_part["rect"].topleft = dragging_part["original_pos"]
+
+                dragging_part = None
+
+        #dragging movement
+        if event.type == pygame.MOUSEMOTION and dragging_part:
+            mouse_x, mouse_y = event.pos
+            dragging_part["rect"].x = mouse_x + offset_x
+            dragging_part["rect"].y = mouse_y + offset_y
+
+    #show game over screen
+    if game_over:
+        screen.fill(RED)
+        text = font.render("MELTDOWN!", True, BLACK)
+        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 150))
+        restart_button = draw_restart_button()
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
+    #show win screen
+    if game_won:
+        screen.fill(GREEN)
+        text = font.render("REACTOR ONLINE!", True, BLACK)
+        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 150))
+        restart_button = draw_restart_button()
+        pygame.display.flip()
+        clock.tick(60)
+        continue
+
+    #slot numbers
+    for slot in slots:
+        number_text = font.render(str(slot["id"]), True, GREEN)
+        number_rect = number_text.get_rect(center=slot["rect"].center)
+        screen.blit(number_text, number_rect)
+    #draw parts (colored rectangles)(ill replace with images later)
+    for part in parts:
+        pygame.draw.rect(screen, part["color"], part["rect"], border_radius=5)
+
+    pygame.display.flip()
+    clock.tick(60)
+
+
