@@ -165,20 +165,3 @@ while running:
     clock.tick(60)
 
 
-.display.flip()
-        clock.tick(60)
-        continue
-
-    #slot numbers
-    for slot in slots:
-        number_text = font.render(str(slot["id"]), True, GREEN)
-        number_rect = number_text.get_rect(center=slot["rect"].center)
-        screen.blit(number_text, number_rect)
-    #draw parts (colored rectangles)(ill replace with images later)
-    for part in parts:
-        pygame.draw.rect(screen, part["color"], part["rect"], border_radius=5)
-
-    pygame.display.flip()
-    clock.tick(60)
-
-
