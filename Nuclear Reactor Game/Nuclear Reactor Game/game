@@ -126,22 +126,22 @@ while running:
                     if not slot["filled"] and slot["rect"].colliderect(dragging_part["rect"]):
                         dropped_on_slot = True
                         if slot["part"] == dragging_part["name"]:
-                            # Correct slot
+                            #correct slot
                             dragging_part["rect"].topleft = slot["rect"].topleft
                             dragging_part["placed"] = True
                             slot["filled"] = True
-                            # Check win condition
+                            #check win condition
                             if all(slot["filled"] for slot in slots):
                                 game_won = True
                                 win_sound.play()
                         else:
-                            # Wrong slot triggers game over
+                            #wrong slot triggers game over
                             game_over = True
                             fail_sound.play()
-                        break  # Only allow one slot per drop
+                        break  #only allow one slot per drop
 
                 if not dropped_on_slot:
-                    # Snap back if not dropped on any slot
+                    #snap back if not dropped on any slot
                     dragging_part["rect"].topleft = dragging_part["original_pos"]
 
                 dragging_part = None
@@ -171,11 +171,6 @@ while running:
         clock.tick(60)
         continue
 
-    #slot numbers
-    for slot in slots:
-        number_text = font.render(str(slot["id"]), True, GREEN)
-        number_rect = number_text.get_rect(center=slot["rect"].center)
-        screen.blit(number_text, number_rect)
     #draw parts (using images)
     for part in parts:
         screen.blit(part["image"], part["rect"])
