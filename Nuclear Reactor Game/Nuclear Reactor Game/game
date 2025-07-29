@@ -8,7 +8,15 @@ pygame.mixer.init()  #initialize sound mixer
 #screen settings:
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption('Loading Image')
 pygame.display.set_caption("Nuclear Reactor Constructor")
+
+#images:
+bg = pygame.image.load('bg_screen.png')
+success_screen = pygame.image.load('success_screen.png')
+steam_generator = pygame.image.load('steam_generator.png').convert_alpha() 
+reactor_core = pygame.image.load('reactor_core.png').convert_alpha() 
+generator = pygame.image.load('generator.png').convert_alpha() 
 
 #colors:
 WHITE = (255, 255, 255)
@@ -22,35 +30,52 @@ YELLOW = (200, 200, 0)
 font = pygame.font.SysFont(None, 60)
 small_font = pygame.font.SysFont(None, 40)
 
-#load sounds:
-try:
-    explosion_sound = pygame.mixer.Sound("boom.wav")
-    success_sound = pygame.mixer.Sound("success.wav")
-except:
-    print("failed to load sounds")
+#sounds:
+
+fail_sound = pygame.mixer.Sound("boom.wav")
+win_sound = pygame.mixer.Sound("yippee.wav")
+
 
 
 def create_game_state():
     """Initialize or reset the game state."""
-    #original positions for snapback behavior:
+    #remember original positions for snapback
     parts = [
-        {"name": "Core", "color": RED, "rect": pygame.Rect(50, 100, 80, 80), "original_pos": (50, 100), "placed": False},
-        {"name": "Control Rod", "color": BLUE, "rect": pygame.Rect(50, 200, 80, 80), "original_pos": (50, 200), "placed": False},
-        {"name": "Coolant Tank", "color": YELLOW, "rect": pygame.Rect(50, 300, 80, 80), "original_pos": (50, 300), "placed": False}
+        {
+            "name": "Reactor",
+            "image": reactor_core,
+            "rect": reactor_core.get_rect(topleft=(100, 10)),
+            "original_pos": (100, 10),
+            "placed": False
+        },
+        {
+            "name": "Generator",
+            "image": generator,
+            "rect": generator.get_rect(topleft=(300, 10)),
+            "original_pos": (300, 10),
+            "placed": False
+        },
+        {
+            "name": "Cooling System",
+            "image": steam_generator,
+            "rect": steam_generator.get_rect(topleft=(500, 10)),
+            "original_pos": (500, 10),
+            "placed": False
+        }
     ]
 
-    #slots (horizontal row):
+    #slots
     slots = [
-        {"id": 1, "rect": pygame.Rect(300, 300, 80, 80), "part": "Core", "filled": False},
-        {"id": 2, "rect": pygame.Rect(400, 300, 80, 80), "part": "Control Rod", "filled": False},
-        {"id": 3, "rect": pygame.Rect(500, 300, 80, 80), "part": "Coolant Tank", "filled": False}
+        {"id": 1, "rect": pygame.Rect(123, 276, 80, 80), "part": "Cooling System", "filled": False},
+        {"id": 2, "rect": pygame.Rect(186, 392, 80, 80), "part": "Reactor", "filled": False},
+        {"id": 3, "rect": pygame.Rect(383, 473, 80, 80), "part": "Generator", "filled": False}
     ]
 
     return parts, slots, 0, False, False  # parts, slots, current_slot_index, game_over, game_won
 
 
 def draw_restart_button():
-    """Draw and return the restart button rect."""
+    """Draw and return the restart button rect"""
     button_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT - 100, 200, 60)
     pygame.draw.rect(screen, GREEN, button_rect, border_radius=10)
     text = small_font.render("RESTART", True, BLACK)
@@ -67,7 +92,8 @@ offset_x, offset_y = 0, 0
 clock = pygame.time.Clock()
 running = True
 while running:
-    screen.fill(BLACK)  #background
+    screen.fill(WHITE)  #background
+    screen.blit(bg, (0,0))
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -95,37 +121,30 @@ while running:
         #drop part
         if event.type == pygame.MOUSEBUTTONUP:
             if dragging_part:
-                #check if part overlaps any slot
                 dropped_on_slot = False
-                slot = slots[current_slot_index]  #next required slot
+                for slot in slots:
+                    if not slot["filled"] and slot["rect"].colliderect(dragging_part["rect"]):
+                        dropped_on_slot = True
+                        if slot["part"] == dragging_part["name"]:
+                            # Correct slot
+                            dragging_part["rect"].topleft = slot["rect"].topleft
+                            dragging_part["placed"] = True
+                            slot["filled"] = True
+                            # Check win condition
+                            if all(slot["filled"] for slot in slots):
+                                game_won = True
+                                win_sound.play()
+                        else:
+                            # Wrong slot triggers game over
+                            game_over = True
+                            fail_sound.play()
+                        break  # Only allow one slot per drop
 
-                if slot["rect"].colliderect(dragging_part["rect"]):
-                    dropped_on_slot = True
-                    if slot["part"] == dragging_part["name"]:
-                        #if correct slot
-                        dragging_part["rect"].topleft = slot["rect"].topleft
-                        dragging_part["placed"] = True
-                        slot["filled"] = True
-                        current_slot_index += 1
-
-                        #check if all parts placed (win condition)
-                        if all(slot["filled"] for slot in slots):
-                            game_won = True
-                            success_sound.play()
-
-                    else:
-                        #meltdown
-                        game_over = True
-                        if game_over == True:
-                            explosion_sound.play()
-
-                
                 if not dropped_on_slot:
-                    #snapback to tray position if dropped elsewhere
+                    # Snap back if not dropped on any slot
                     dragging_part["rect"].topleft = dragging_part["original_pos"]
 
                 dragging_part = None
-
         #dragging movement
         if event.type == pygame.MOUSEMOTION and dragging_part:
             mouse_x, mouse_y = event.pos
@@ -144,7 +163,7 @@ while running:
 
     #show win screen
     if game_won:
-        screen.fill(GREEN)
+        screen.blit(success_screen, (0, 0))
         text = font.render("REACTOR ONLINE!", True, BLACK)
         screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 150))
         restart_button = draw_restart_button()
@@ -157,9 +176,9 @@ while running:
         number_text = font.render(str(slot["id"]), True, GREEN)
         number_rect = number_text.get_rect(center=slot["rect"].center)
         screen.blit(number_text, number_rect)
-    #draw parts (colored rectangles)(ill replace with images later)
+    #draw parts (using images)
     for part in parts:
-        pygame.draw.rect(screen, part["color"], part["rect"], border_radius=5)
+        screen.blit(part["image"], part["rect"])
 
     pygame.display.flip()
     clock.tick(60)
